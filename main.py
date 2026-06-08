@@ -721,12 +721,12 @@ def resolve_label_offset(label_name, current_address, original_line, line_number
     unsigned_offset = abs(raw)
     direction = 'a' if raw >= 0 else 's'
 
-    # 验证偏移量范围：硬件只接受 0..255（无符号）
-    if unsigned_offset < 0 or unsigned_offset > 255:
+    # 验证偏移量范围：指令存储器地址为12位，允许 0..4095（无符号）
+    if unsigned_offset < 0 or unsigned_offset > 0x0FFF:
         label_pos, label_len = get_token_pos_len(original_line, None, label_name)
         print_error(original_line, label_pos, label_len if label_len>0 else len(label_name), 
-               f"label offset {unsigned_offset} out of range [0, 255]",
-               f"label '{label_name}' is too far away, offset must fit in 8-bit unsigned field",
+               f"label offset {unsigned_offset} out of range [0, 4095]",
+               f"label '{label_name}' is too far away, offset must fit in 12-bit unsigned field",
                line_number, "error", input_filename)
         sys.exit(1)
 
@@ -974,6 +974,11 @@ for entry in expanded_instructions:
     if line_lower == '' or line_lower[0] == ';':
         continue
 
+    # 一个小彩蛋：如果行内容（去除空白）是 "egg"，输出提示并继续，不计入指令数
+    if line_lower.strip() == "egg":
+        print("[ EGG ]\nYou are here.")
+        continue
+
     # 获取指令
     tokens = line_lower.split()
 
@@ -1014,8 +1019,18 @@ for entry in expanded_instructions:
     if not line_lower:
         continue
 
+    # 小彩蛋
+    if "fuck" in line_lower:
+        start_idx = line_lower.find("fuck")
+        print_error(original_line, start_idx, 4,
+                   "Watch your language!",
+                   "????????????????????????????",
+                   line_num_temp + 1, "error", input_filename)
+        sys.exit(1)
+
+
     # 跳过空行和注释行
-    if line_lower == '' or line_lower[0] == ';':
+    if line_lower == '' or line_lower == 'egg' or line_lower[0] == ';':
         continue
 
     # 去除行内注释（entry['text'] 应已无注释，但保留以防）
@@ -1053,7 +1068,7 @@ for entry in expanded_instructions:
         if len(tokens) != 3:
             print_error(original_line, 0, len(original_line.rstrip('\n')), 
                        f"expected syntax: const NAME VALUE",
-                       f"correct format: const IDENTIFIER NUMBER (example: const MASK 0xFF)",
+                       f"correct format: const IDENTIFIER NUMBER (example: const MASK 0xFFF)",
                        line_number, "error", input_filename)
             sys.exit(1)
         
@@ -1076,12 +1091,12 @@ for entry in expanded_instructions:
                        line_number, "error", input_filename)
             sys.exit(1)
         
-        # 验证范围（0-255）
-        if const_value < 0 or const_value > 255:
+        # 验证范围（0-4095）
+        if const_value < 0 or const_value > 4095:
             const_pos, const_len = get_token_pos_len(original_line, 2, const_value_str)
             print_error(original_line, const_pos, const_len if const_len>0 else len(const_value_str), 
-                       f"constant value {const_value} out of range [0, 255]",
-                       "values must be between 0 and 255 (inclusive)",
+                       f"constant value {const_value} out of range [0, 4095]",
+                       "values must be between 0 and 4095 (inclusive)",
                        line_number, "error", input_filename)
             sys.exit(1)
         
@@ -1212,7 +1227,7 @@ for entry in expanded_instructions:
         
     # 特殊处理 NOT 伪指令（需要常量支持）
     if opcode == "not":
-        # 约定: tokens = ["not", RD, RS]
+        # 约定: tokens = ["not", RD, TMP]
         if len(tokens) != 3:
             print_error(original_line, start_idx, len(opcode),
                        f"'not' expects 2 operands, got {len(tokens)-1}",
@@ -1224,25 +1239,20 @@ for entry in expanded_instructions:
         if 'not_mask' not in constants:
             print_error(original_line, start_idx, len(opcode),
                        f"use of undeclared constant 'not_mask'",
-                       "add 'const NOT_MASK 0xFF' before using NOT instruction",
+                       "add 'const NOT_MASK 0xFFF' before using NOT instruction",
                        line_number, "error", input_filename)
             sys.exit(1)
 
         rd = tokens[1]
-        rs = tokens[2]
+        rs = rd
+        tmp_reg = tokens[2]
         not_mask_value = constants['not_mask']['value']
         constants['not_mask']['used'] = True
 
-        # 选择一个临时寄存器（不等于 rs 或 rd）
-        tmp_reg = None
-        for r in ['r0', 'r1', 'r2', 'r3']:
-            if r != rd.lower() and r != rs.lower():
-                tmp_reg = r
-                break
-        if tmp_reg is None:
+        if rd.lower() == tmp_reg.lower():
             print_error(original_line, start_idx, len(opcode),
-                       "no available temporary register for 'not' expansion",
-                       "ensure at least one register is free to use as temporary",
+                       "destination and temporary register cannot be the same",
+                       "please use different registers",
                        line_number, "error", input_filename)
             sys.exit(1)
 

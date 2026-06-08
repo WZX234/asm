@@ -1,0 +1,1 @@
+expanded_instructions = preprocess_lines(lines)

@@ -11,6 +11,7 @@ INSTRUCTION_BITS = 16
 MAX_REGISTER_INDEX = 3
 DEBUG = False
 
+Version = "2.1.2.0"  # 版本号定义
 
 def debug_print(*args):
     if DEBUG:
@@ -751,7 +752,7 @@ for arg in sys.argv[1:]:
 
 # 如果用户请求版本或帮助，优先处理并退出（无需文件参数）
 if any(a in ("-v", "--version") for a in addr):
-    print(f"{Colors.YELLOW}{Colors.BOLD}ASSEMBLER Version 2.0.0.1{Colors.RESET}")
+    print(f"{Colors.YELLOW}{Colors.BOLD}ASSEMBLER Version {Version}{Colors.RESET}")
     sys.exit()
 
 if any(a in ("-h", "--help") for a in addr):
@@ -759,7 +760,8 @@ if any(a in ("-h", "--help") for a in addr):
     print(f"{Colors.CYAN}Options:{Colors.RESET}")
     print(f"  {Colors.YELLOW}-v, --version{Colors.RESET}   Show assembler version information")
     print(f"  {Colors.YELLOW}-h, --help{Colors.RESET}      Show this help message")
-    print(f"  {Colors.YELLOW}-o, --output{Colors.RESET}    Specify output file name (default: <input>_machine.txt)")
+    print(f"  {Colors.YELLOW}-o, --output{Colors.RESET}    Specify output file format (binary, hex, bin)")
+    print(f"  {Colors.YELLOW}-d, --debug{Colors.RESET}      Enable debug mode for detailed processing logs")
     sys.exit()
 
 # 确定输入文件：第一个不以 '-' 开头的参数被视为输入文件
@@ -772,9 +774,8 @@ for a in addr:
 if input_filename is None:
     print(f"{Colors.CYAN}Hello! This is a simple assembler. To use it, provide the path to the assembly file as an argument.{Colors.RESET}")
     print(f"{Colors.CYAN}Usage: python main.py [options] <assembly_file>{Colors.RESET}")
-    print(f"{Colors.CYAN}Options:{Colors.RESET}")
-    print(f"{Colors.CYAN}  -d, --debug    Enable debug mode{Colors.RESET}")
-    print(f"{Colors.CYAN}  -o, --output   Specify output file format (binary, hex, bin){Colors.RESET}")
+    print(f"{Colors.CYAN}Help:{Colors.RESET}")
+    print(f"  {Colors.CYAN}-h, --help     Show this help message{Colors.RESET}")
     sys.exit()
 
 # 打开文件：优先使用 UTF-8，失败则退回 GBK
@@ -1347,8 +1348,6 @@ for entry in expanded_instructions:
                            "use a register name instead of a constant name",
                            line_number, "error")
                 sys.exit(1)
-
-    # 不再自动交换操作数位置，操作数顺序应严格为: opcode RS1 RS2 RD
 
     # 自动补全立即数指令 i
     # 对于分支/存储类指令（opcode rs1 rs2 offset），跳过此处对立即数位置的自动检查
